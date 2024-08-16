@@ -5,6 +5,7 @@ import win32gui
 import win32process
 import threading
 import psutil
+import gc
 import numpy as np
 import cv2
 import pyautogui
@@ -132,6 +133,7 @@ def resume_movement():
 
 # Function to detect and click the "YES" button after "PLAY AGAIN"
 def detect_and_click_yes():
+    global detection_thread_active
     print("Looking for the YES button...")
     time.sleep(3)  # Give some time for the YES screen to appear
 
@@ -168,6 +170,14 @@ def detect_and_click_yes():
 
             if max_val < 0.8:  # If the "YES" button is not found, confirm success
                 print("YES button successfully clicked and no longer detected.")
+                
+                # Reset detection process here
+                load_templates()  # Reload templates to reset object detection
+                gc.collect()  # Explicitly trigger garbage collection
+
+                # Indicate that the bot is ready to start looking for buttons again
+                print("Looking for buttons")
+
                 resume_movement()
                 return
             else:
@@ -179,7 +189,16 @@ def detect_and_click_yes():
     # If all attempts fail, click predefined coordinates as a backup
     print(f"Clicking predefined coordinates for YES button: {yes_button_coords}")
     click(yes_button_coords[0], yes_button_coords[1])
+    
+    # Reset detection process here
+    load_templates()  # Reload templates to reset object detection
+    gc.collect()  # Explicitly trigger garbage collection
+    
+    # Indicate that the bot is ready to start looking for buttons again
+    print("Looking for buttons")
+    
     resume_movement()
+
 
 
 # Function to detect and click the "PLAY AGAIN" button in the right section

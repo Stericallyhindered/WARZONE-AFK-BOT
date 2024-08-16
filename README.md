@@ -5,6 +5,20 @@ Load the game, unbind the auto move forward key in game settings (h)
 
 open console in main directory of project
 
+type
+pip install -r requirements.txt
+
+                  if pyqt5 is being stoopid
+
+
+
+
+ 
+              pip install PyQt5==5.15.4
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+
+
 type  
 python bot.py
 

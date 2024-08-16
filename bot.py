@@ -124,12 +124,24 @@ def stop_movement():
 
 # Function to resume movement
 def resume_movement():
-    global movement_enabled
-    if not movement_enabled:
+    global movement_enabled, detection_thread_active
+    if not movement_enabled:  # Check if movement is not enabled before resuming
         movement_enabled = True
+        detection_thread_active = False  # Reset detection thread state
+
+        overlay.update_status(True)  # Update overlay to show running status
         print("Movement resumed")
+        
+        # Start the random movement in a separate thread
         movement_thread = threading.Thread(target=perform_random_movement)
         movement_thread.start()
+
+        # Start the detection process again
+        detection_thread = threading.Thread(target=detect_and_click_play_again)
+        detection_thread.start()
+
+        print("Looking for buttons")
+
 
 # Function to detect and click the "YES" button after "PLAY AGAIN"
 def detect_and_click_yes():
@@ -223,8 +235,7 @@ def detect_and_click_play_again():
             result = cv2.matchTemplate(screenshot_gray, template_play_again, cv2.TM_CCOEFF_NORMED)
             _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-            # If the match is good enough, click the button
-            if max_val >= 0.8:  # Adjust the threshold as necessary
+            if max_val >= 0.8:  # If the match is good enough, click the button
                 stop_movement()
                 button_x = max_loc[0] + template_play_again_w // 2 + screen_width * 2 // 3  # Adjust x for the right section
                 button_y = max_loc[1] + template_play_again_h // 2
@@ -248,11 +259,11 @@ def detect_and_click_play_again():
                         print("PLAY AGAIN button still detected, clicking again...")
                         click(button_x, button_y)  # Click the button again if still detected
 
-            # Try the hovered version of the button if the standard one fails
+            # If not found, try the hovered version
             result_hovered = cv2.matchTemplate(screenshot_gray, template_play_again_hovered, cv2.TM_CCOEFF_NORMED)
             _, max_val_hovered, _, max_loc_hovered = cv2.minMaxLoc(result_hovered)
 
-            if max_val_hovered >= 0.8:  # Adjust the threshold as necessary
+            if max_val_hovered >= 0.8:
                 stop_movement()
                 button_x = max_loc_hovered[0] + template_play_again_hovered_w // 2 + screen_width * 2 // 3
                 button_y = max_loc_hovered[1] + template_play_again_hovered_h // 2
@@ -261,26 +272,27 @@ def detect_and_click_play_again():
 
                 # After clicking, verify if the button is still there and retry if needed
                 while True:
-                    time.sleep(1)  # Short delay before rechecking
+                    time.sleep(1)
                     screenshot = ImageGrab.grab(bbox=right_section)
                     screenshot_np = np.array(screenshot)
                     screenshot_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
                     result_hovered = cv2.matchTemplate(screenshot_gray, template_play_again_hovered, cv2.TM_CCOEFF_NORMED)
                     _, max_val_hovered, _, _ = cv2.minMaxLoc(result_hovered)
 
-                    if max_val_hovered < 0.8:  # If the "Play Again" button is no longer found, move on
+                    if max_val_hovered < 0.8:
                         print("PLAY AGAIN (hovered) button no longer detected.")
-                        detect_and_click_yes()  # Proceed to the "YES" button
+                        detect_and_click_yes()
                         return
                     else:
                         print("PLAY AGAIN (hovered) button still detected, clicking again...")
-                        click(button_x, button_y)  # Click the button again if still detected
+                        click(button_x, button_y)
 
             # Wait for the check interval before the next screenshot if neither button is found
             time.sleep(check_interval)
 
     finally:
         detection_thread_active = False  # Ensure the flag is reset when the thread exits
+
 
 
 # Create a PyQt5 application and overlay window with instructions

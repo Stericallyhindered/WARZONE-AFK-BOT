@@ -46,3 +46,17 @@ the console keeps track of button clicks, and shows when movement is stopped and
 use at your own risk, if it doesnt work for you, ask chat gpt.
 
 you can change the PNG files , as they are the buttons the ai looks for to press.  if you use color filters etc you should probably re create your own PNG button files, to customize it to your setup  (this is the fix if it doesnt work right out of the gate)
+
+
+Clicked PLAY AGAIN at position: (2046, 1224)
+PLAY AGAIN button still detected, clicking again...
+PLAY AGAIN button no longer detected.
+Looking for the YES button...
+Clicked YES at position: (944, 804)
+
+
+
+the positions of the buttons will change with your differing resolutions, manually find your coordinates and replace these numbers in the code 
+
+ (944, 804) yes button
+ (2046, 1224) play again button

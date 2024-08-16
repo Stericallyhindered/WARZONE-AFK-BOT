@@ -61,11 +61,11 @@ def perform_random_movement():
         # Wait for a random duration between 1 and 3 seconds before the next move
         time.sleep(random.uniform(1, 3))
 
-        # Randomly press the F key every 10 seconds
+        # Randomly press the F key every 5 seconds
         keyinput.pressKey(0x21)  # F key (hex code for 'F' is 0x21)
         keyinput.releaseKey(0x21)
         print("Pressed F key")
-        time.sleep(10)  # Wait for 10 seconds
+        time.sleep(5)  # Wait for 5 seconds
 
 # Find the PID of the process by its name
 def find_pid_by_name(process_name):
@@ -130,6 +130,7 @@ def resume_movement():
         movement_thread = threading.Thread(target=perform_random_movement)
         movement_thread.start()
 
+# Function to detect and click the "YES" button after "PLAY AGAIN"
 def detect_and_click_yes():
     print("Looking for the YES button...")
     time.sleep(3)  # Give some time for the YES screen to appear
@@ -199,7 +200,7 @@ def detect_and_click_play_again():
             screenshot_np = np.array(screenshot)
             screenshot_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
 
-            # Perform template matching to find the "PLAY AGAIN" button
+            # Perform template matching to find the "Play Again" button
             result = cv2.matchTemplate(screenshot_gray, template_play_again, cv2.TM_CCOEFF_NORMED)
             _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
@@ -211,9 +212,22 @@ def detect_and_click_play_again():
                 click(button_x, button_y)
                 print(f"Clicked PLAY AGAIN at position: ({button_x}, {button_y})")
 
-                # After clicking "PLAY AGAIN," search for the "YES" button
-                detect_and_click_yes()
-                break
+                # After clicking, verify if the button is still there and retry if needed
+                while True:
+                    time.sleep(1)  # Short delay before rechecking
+                    screenshot = ImageGrab.grab(bbox=right_section)
+                    screenshot_np = np.array(screenshot)
+                    screenshot_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
+                    result = cv2.matchTemplate(screenshot_gray, template_play_again, cv2.TM_CCOEFF_NORMED)
+                    _, max_val, _, _ = cv2.minMaxLoc(result)
+
+                    if max_val < 0.8:  # If the "Play Again" button is no longer found, move on
+                        print("PLAY AGAIN button no longer detected.")
+                        detect_and_click_yes()  # Proceed to the "YES" button
+                        return
+                    else:
+                        print("PLAY AGAIN button still detected, clicking again...")
+                        click(button_x, button_y)  # Click the button again if still detected
 
             # Try the hovered version of the button if the standard one fails
             result_hovered = cv2.matchTemplate(screenshot_gray, template_play_again_hovered, cv2.TM_CCOEFF_NORMED)
@@ -226,14 +240,29 @@ def detect_and_click_play_again():
                 click(button_x, button_y)
                 print(f"Clicked PLAY AGAIN (hovered) at position: ({button_x}, {button_y})")
 
-                detect_and_click_yes()
-                break
+                # After clicking, verify if the button is still there and retry if needed
+                while True:
+                    time.sleep(1)  # Short delay before rechecking
+                    screenshot = ImageGrab.grab(bbox=right_section)
+                    screenshot_np = np.array(screenshot)
+                    screenshot_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
+                    result_hovered = cv2.matchTemplate(screenshot_gray, template_play_again_hovered, cv2.TM_CCOEFF_NORMED)
+                    _, max_val_hovered, _, _ = cv2.minMaxLoc(result_hovered)
 
-            # Wait for the check interval before the next screenshot
+                    if max_val_hovered < 0.8:  # If the "Play Again" button is no longer found, move on
+                        print("PLAY AGAIN (hovered) button no longer detected.")
+                        detect_and_click_yes()  # Proceed to the "YES" button
+                        return
+                    else:
+                        print("PLAY AGAIN (hovered) button still detected, clicking again...")
+                        click(button_x, button_y)  # Click the button again if still detected
+
+            # Wait for the check interval before the next screenshot if neither button is found
             time.sleep(check_interval)
 
     finally:
         detection_thread_active = False  # Ensure the flag is reset when the thread exits
+
 
 # Create a PyQt5 application and overlay window with instructions
 class OverlayWindow(QWidget):
@@ -267,7 +296,6 @@ class OverlayWindow(QWidget):
         else:
             self.status_label.setText("Status: Stopped")
             self.status_label.setStyleSheet("color: red; font-size: 16px;")
-
 
 # Set ourselves as DPI aware, or else we won't get proper pixel coordinates if scaling is not 100%
 errorCode = ctypes.windll.shcore.SetProcessDpiAwareness(2)
@@ -315,6 +343,7 @@ def start_movement():
         detection_thread = threading.Thread(target=detect_and_click_play_again)
         detection_thread.start()
 
+# Function to stop movement
 # Function to stop movement and update overlay status
 def stop_movement():
     global movement_enabled, detection_thread_active

@@ -1,4 +1,4 @@
-# WARZONE-AFK-BOT
+# WARZONE-AFK/DERANK-BOT
 a simple python afk bot for warzone 
 
 Load the game, unbind the auto move forward key in game settings (h)

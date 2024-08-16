@@ -130,15 +130,13 @@ def resume_movement():
         movement_thread = threading.Thread(target=perform_random_movement)
         movement_thread.start()
 
-# Function to detect and click the "YES" button after "PLAY AGAIN"
 def detect_and_click_yes():
     print("Looking for the YES button...")
     time.sleep(3)  # Give some time for the YES screen to appear
 
-    attempts = 0
     max_attempts = 3  # Limit the number of attempts to find the YES button
 
-    while attempts < max_attempts:
+    for attempt in range(max_attempts):
         # Capture the full screen (for YES button detection)
         screenshot = ImageGrab.grab()
         screenshot_np = np.array(screenshot)
@@ -150,26 +148,38 @@ def detect_and_click_yes():
         result = cv2.matchTemplate(screenshot_gray, template_yes, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-        # If the match is good enough, click the button
-        if max_val >= 0.8:  # Adjust the threshold as necessary
+        if max_val >= 0.8:  # If the match is good enough, click the button
             button_x = max_loc[0] + template_yes_w // 2
             button_y = max_loc[1] + template_yes_h // 2
-            click(button_x, button_y)
-            print(f"Clicked YES at position: ({button_x}, {button_y})")
-            
-            # After clicking YES, resume movement
-            resume_movement()
-            break
 
-        attempts += 1
-        print(f"Attempt {attempts} to find YES button failed.")
-        time.sleep(check_interval)
+            for _ in range(5):  # Click the "YES" button 5 times at human speed
+                click(button_x, button_y)
+                time.sleep(random.uniform(0.3, 0.7))  # Add random delay between clicks
+            print(f"Clicked YES at position: ({button_x}, {button_y})")
+
+            # Recheck to see if the button is still there
+            time.sleep(1)  # Short delay before rechecking
+            screenshot = ImageGrab.grab()
+            screenshot_np = np.array(screenshot)
+            screenshot_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
+            result = cv2.matchTemplate(screenshot_gray, template_yes, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(result)
+
+            if max_val < 0.8:  # If the "YES" button is not found, confirm success
+                print("YES button successfully clicked and no longer detected.")
+                resume_movement()
+                return
+            else:
+                print("YES button still detected, retrying...")
+
+        print(f"Attempt {attempt + 1} to click YES button failed.")
+        time.sleep(check_interval)  # Wait for a while before retrying
 
     # If all attempts fail, click predefined coordinates as a backup
-    if attempts >= max_attempts:
-        print(f"Clicking predefined coordinates for YES button: {yes_button_coords}")
-        click(yes_button_coords[0], yes_button_coords[1])
-        resume_movement()
+    print(f"Clicking predefined coordinates for YES button: {yes_button_coords}")
+    click(yes_button_coords[0], yes_button_coords[1])
+    resume_movement()
+
 
 # Function to detect and click the "PLAY AGAIN" button in the right section
 def detect_and_click_play_again():
@@ -258,6 +268,7 @@ class OverlayWindow(QWidget):
             self.status_label.setText("Status: Stopped")
             self.status_label.setStyleSheet("color: red; font-size: 16px;")
 
+
 # Set ourselves as DPI aware, or else we won't get proper pixel coordinates if scaling is not 100%
 errorCode = ctypes.windll.shcore.SetProcessDpiAwareness(2)
 
@@ -304,13 +315,25 @@ def start_movement():
         detection_thread = threading.Thread(target=detect_and_click_play_again)
         detection_thread.start()
 
-# Function to stop movement
+# Function to stop movement and update overlay status
 def stop_movement():
     global movement_enabled, detection_thread_active
-    movement_enabled = False
-    detection_thread_active = False  # Allow a new detection thread to be started
-    print("Movement stopped")
-    overlay.update_status(False)
+    if movement_enabled:  # Check if movement is actually enabled before stopping
+        movement_enabled = False
+        detection_thread_active = False  # Allow a new detection thread to be started
+        overlay.update_status(False)  # Update overlay to show stopped status
+        print("Movement stopped")
+
+# Function to resume movement and update overlay status
+def resume_movement():
+    global movement_enabled
+    if not movement_enabled:  # Check if movement is not enabled before resuming
+        movement_enabled = True
+        overlay.update_status(True)  # Update overlay to show running status
+        print("Movement resumed")
+        movement_thread = threading.Thread(target=perform_random_movement)
+        movement_thread.start()
+
 
 # Set up global hotkeys using Pynput to start and stop movement
 def on_press(key):
